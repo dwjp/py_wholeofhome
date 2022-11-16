@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "py-wholeofhome"
+version = "0.1.0"
+description = ""
+authors = ["David Perry <david@boompower.com.au>"]
+readme = "README.md"
+packages = [{include = "py_wholeofhome"}]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+pandas = "^1.5.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
