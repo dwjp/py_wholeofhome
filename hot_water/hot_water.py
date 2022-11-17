@@ -7,6 +7,7 @@ from typing import Optional
 
 from utilities import calculate_occupants
 
+
 class HotWaterType(Enum):
     SOLID_FUEL = 0
     ELECTRIC_STORAGE_SMALL = 1
@@ -17,12 +18,22 @@ class HotWaterType(Enum):
     SOLAR_ELECTRIC = 6
     SOLAR_GAS = 7
     HEAT_PUMP = 8
+    # Auxiliary electrical load for GAS_INSTANTANEOUS... treat as independent HW unit for sake of analysis here,
+    # but not intended for use outside this module.
+    _GAS_INSTANTANEOUS_AUXILLARY = 9
+
+
+class EnergisationSchedule(Enum):
+    DAYTIME = 0             # Run to fixed daytime schedule
+    OVERNIGHT = 1           # ... or overnight schedule
+    CONTINUOUS = 3      # Or always on, demand depends on hot water usage.
 
 
 def calculate_winter_peak_demand(occupants: float, climate_zone: int) -> float:
     """
     Per Equation 25 (assumes 40 L hot water delivery per occupant).
     :param occupants:
+    :param climate_zone:
     :return: Winter peak water demand in MJ/day (Kwp)
     """
 
@@ -106,6 +117,7 @@ def calculate_annual_purchased_energy(annual_demand: float, hw_type_code: str) -
     """
 
     :param annual_demand:
+    :param hw_type_code:
     :return:
     """
 
@@ -126,7 +138,8 @@ def calculate_annual_purchased_energy(annual_demand: float, hw_type_code: str) -
 
 def get_climate_zone(postcode: str, hw_type: HotWaterType) -> int:
     """
-    Get climate zone for given postcode and hot water type. Note these are different to NatHERS climate zones!
+    Get climate zone for given postcode and hot water type.
+    Note these are different to NatHERS climate zones!
 
     :param postcode: Australian postcode as string.
     :param hw_type:
@@ -154,6 +167,181 @@ def get_climate_zone(postcode: str, hw_type: HotWaterType) -> int:
     return zone
 
 
+def calculate_monthly_share(hw_type_code: str, annual_demand: float) -> [float]:
+    """
+
+    :param hw_type_code: Code describing hot water type, climate zone, and performance per standard, e.g. SHP-4-30
+    :param annual_demand: Annual hot water demand. Only used for solar thermal systems (i.e. coefficiencts a/b/c zero
+    for other types of hot water system).
+    :return: Array with monthly share of HW demand with length of 12.
+    """
+
+    coefficient_data = pd.read_csv("hot_water/reference_data/hw_monthly_share_rev10.1.csv",
+                                   index_col="System ID")
+
+    # Just grab type and climate zone, e.g. "SHP-4" for "SHP-4-30"
+    hw_type_code_prefix = hw_type_code[0:5]
+
+    months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
+
+    monthly_shares = []
+
+    # No checking that type code and coefficients exist... assume we've already run calculate_annual_purchased_energy
+    # which makes sure hw_type_code is valid.
+    for month in months:
+        hw_type_code_for_month = hw_type_code_prefix + f'-{month}'
+        row = coefficient_data.loc[hw_type_code_for_month]
+        a, b, c, d = float(row['a-month']), float(row['b-month']), float(row['c-month']), float(row['d-month'])
+        monthly_shares.append((a * (annual_demand ** 3)) + (b * (annual_demand ** 2)) + (c * annual_demand) + d)
+
+    # Shares should add up to be close to 1
+    assert math.isclose(sum(monthly_shares), 1.0, abs_tol=0.001)
+
+    return monthly_shares
+
+
+def calculate_hourly_performance_by_coefficients(hw_type: HotWaterType, annual_demand: float):
+    """
+    For hot water heaters where energy demand isn't directly coupled to usage, apply a set of four
+    three order polynomials to represent share of energy usage throughout the day.
+
+    :param hw_type:
+    :param annual_demand:
+    :return:
+    """
+
+    def extract_coefficients(df, system_id):
+        row = df.loc[system_id]
+        a, b, c, d = row['ax'], row['bx'], row['cx'], row['dx']
+        return a, b, c, d
+
+    hourly_coefficients = pd.read_csv("hot_water/reference_data/hw_hourly_coefficients_rev10.1.csv",
+                                      index_col="System ID")
+
+    # Get abbreviations used to describe HW type in data table
+    if hw_type == HotWaterType.ELECTRIC_STORAGE_SMALL:
+        row_code = 'ESS'
+    elif hw_type == HotWaterType.GAS_STORAGE:
+        row_code = 'GST'
+    elif hw_type == HotWaterType._GAS_INSTANTANEOUS_AUXILLARY:
+        row_code = 'GIN'
+    elif hw_type == HotWaterType.HEAT_PUMP:
+        row_code = 'SHP'
+    else:
+        raise NotImplementedError
+
+    # Look up coefficients from table
+    A_a, A_b, A_c, A_d = extract_coefficients(hourly_coefficients, f'{row_code}-A')
+    B_a, B_b, B_c, B_d = extract_coefficients(hourly_coefficients, f'{row_code}-B')
+    C_a, C_b, C_c, C_d = extract_coefficients(hourly_coefficients, f'{row_code}-C')
+    D_a, D_b, D_c, D_d = extract_coefficients(hourly_coefficients, f'{row_code}-D')
+
+    # Apply equation 31 to 34 from methods paper
+    component_A = (A_a * (annual_demand ** 3)) + (A_b * (annual_demand ** 2)) + (A_c * annual_demand) + A_d
+    component_B = (B_a * (annual_demand ** 3)) + (B_b * (annual_demand ** 2)) + (B_c * annual_demand) + B_d
+    component_C = (C_a * (annual_demand ** 3)) + (C_b * (annual_demand ** 2)) + (C_c * annual_demand) + C_d
+    component_D = (D_a * (annual_demand ** 3)) + (D_b * (annual_demand ** 2)) + (D_c * annual_demand) + D_d
+
+    # Hours of day for which each component applies (note that 1 = midnight)
+    hours_A = [1, 2, 3, 4, 5, 6, 7, 10, 11, 13, 15, 20, 21, 22, 23, 24]
+    hours_B = [12, 14]
+    hours_C = [16, 17, 18, 19]
+    hours_D = [8, 9]
+    assert len(hours_A + hours_B + hours_C + hours_D) == 24
+
+    # Assign components to each hour
+    hourly_share = []
+    for hour in range(1, 25):
+        if hour in hours_A:
+            hourly_share.append(component_A)
+        elif hour in hours_B:
+            hourly_share.append(component_B)
+        elif hour in hours_C:
+            hourly_share.append(component_C)
+        elif hour in hours_D:
+            hourly_share.append(component_D)
+        else:
+            raise AssertionError
+
+    # Should add up to 1...
+    # FIXME: Seem to need a bit of wiggle room due to lack of precision in table? Get original spreadsheet instead
+    assert math.isclose(sum(hourly_share), 1.0, abs_tol=0.003)
+
+    return hourly_share
+
+
+def calculate_hourly_share(hw_type: HotWaterType,
+                           annual_demand: float,
+                           energisation_schedule :Optional[EnergisationSchedule]=None) -> [float]:
+    """
+    Calculate what fraction of purchased energy is consumed by hour, over 24 hours.
+
+    :param hw_type: Hot water type
+    :param annual_demand: Annual hw demand
+    :param energisation_schedule: Whether HW is continiously powered, or on schedule (not relevant for some HW types)
+    :return: Hourly share of purchased energy (24 points, summing to 1.00)
+    """
+
+    # N.B. 'Nominal hour number' starts at 1 rather than 0
+    hourly_share_data = pd.read_csv("hot_water/reference_data/hw_hourly_profiles_rev10.1.csv",
+                                    index_col="Nominal hour number")
+
+    # Check energisation setting is valid for given hw type
+    if hw_type == HotWaterType.SOLID_FUEL:
+        # Standard unsure about this one, defaults to continuous...
+        energisation_schedule = EnergisationSchedule.CONTINUOUS
+    elif hw_type == HotWaterType.ELECTRIC_STORAGE_SMALL:
+        # Leave energisation_schedule as is... default to always on, but can run scheduled as well.
+        pass
+    elif hw_type == HotWaterType.ELECTRIC_STORAGE_LARGE:
+        # Don't have method for continuous (load dependent) for large electric storage.
+        if energisation_schedule == EnergisationSchedule.CONTINUOUS:
+            raise RuntimeError("ELECTRIC_STORAGE_LARGE needs to be run either daytime or overnight, not continuous.")
+    elif hw_type == HotWaterType.ELECTRIC_INSTANTANEOUS:
+        if energisation_schedule != EnergisationSchedule.CONTINUOUS:
+            raise RuntimeError("ELECTRIC_INSTANTANEOUS must run continuously.")
+    elif hw_type == HotWaterType.GAS_STORAGE:
+        if energisation_schedule != EnergisationSchedule.CONTINUOUS:
+            raise RuntimeError("GAS_STORAGE must run continuously. .")
+    elif hw_type == HotWaterType.GAS_INSTANTANEOUS:
+        if energisation_schedule != EnergisationSchedule.CONTINUOUS:
+            raise RuntimeError("GAS_INSTANTANEOUS must run continuously. .")
+    elif hw_type == HotWaterType.SOLAR_ELECTRIC:
+        # Leave energisation_schedule as is... default to always on, but can run scheduled as well.
+        pass
+    elif hw_type == HotWaterType.SOLAR_GAS:
+        if energisation_schedule != EnergisationSchedule.CONTINUOUS:
+            raise RuntimeError("SOLAR_GAS must run continuously. .")
+    elif hw_type == HotWaterType.HEAT_PUMP:
+        # Leave energisation_schedule as is... default to always on, but can run scheduled as well.
+        pass
+    else:
+        raise NotImplementedError
+
+    # Get hourly shares, based on fixed energisation schedule where relevant, coupled directly to HW demand, or based
+    # on more complex empirical model for storage systems.
+    if energisation_schedule == EnergisationSchedule.DAYTIME:
+        hourly_share = hourly_share_data['Daytime energisation by hour (share)'].values
+    elif energisation_schedule == EnergisationSchedule.OVERNIGHT:
+        hourly_share = hourly_share_data['Overnight energisation by hour (share)'].values
+    elif energisation_schedule == EnergisationSchedule.CONTINUOUS:
+        if hw_type in [HotWaterType.SOLID_FUEL, HotWaterType.ELECTRIC_INSTANTANEOUS, HotWaterType.GAS_INSTANTANEOUS,
+                       HotWaterType.SOLAR_GAS, HotWaterType.SOLAR_ELECTRIC]:
+            hourly_share = hourly_share_data['Time of Hot Water use by hour (share)'].values
+        elif hw_type in [HotWaterType.ELECTRIC_STORAGE_SMALL,
+                         HotWaterType.GAS_STORAGE,
+                         HotWaterType.HEAT_PUMP,
+                         HotWaterType._GAS_INSTANTANEOUS_AUXILLARY]:
+            # Hourly share depends on more complex model, not just driven by hot water demand or fixed schedule.
+            hourly_share = calculate_hourly_performance_by_coefficients(hw_type, annual_demand)
+        else:
+            raise NotImplementedError
+    else:
+        raise NotImplementedError
+
+    return hourly_share
+
+
 def calculate_hourly_energy_demand(dwelling_area: float,
                                    postcode: str,
                                    hw_type: HotWaterType,
@@ -169,5 +357,14 @@ def calculate_hourly_energy_demand(dwelling_area: float,
     hw_type_code = get_hot_water_type_code(hw_type, climate_zone, gas_star_rating=gas_star_rating, stc_count=stc_count)
 
     annual_purchased_energy = calculate_annual_purchased_energy(annual_demand, hw_type_code)
+
+    monthly_share = calculate_monthly_share(hw_type_code, annual_demand)
+
+    print(monthly_share)
+
+    hourly_share = calculate_hourly_share(hw_type, annual_demand,
+                                          energisation_schedule=EnergisationSchedule.CONTINUOUS)
+
+    print(hourly_share)
 
     return annual_purchased_energy
