@@ -4,8 +4,29 @@ This package implements the various calculations for the Nationwide House Energy
 
 It's a work-in-progress!
 
-Currently designed to implement Rev 10.1 of the Calculation Method Paper.
+Currently, designed to implement Rev 10.1 of the Calculation Method Paper.
+
+This package is not officially affiliated with NatHERS and is not an accredited rating tool. It's intended for research and the creation of other tools that can make use of the underlying methodology. I've used a permissive license (MIT), but I'd encourage any users, whether government, commercial or academic, to get in touch with me to discuss how we can work together to make this a more useful tool for the community. Let's not waste time and money on more proprietary tools that implement exactly the same thing! Please get in touch if you're interested in helping out.
+
+If this package is useful, please consider acknowledging the authors in your work.
 
 
+## What's working
 
-This package is not officially affiliated with NatHERS and is not an accredited rating tool. It's intended for research and the creation of other tools that can make use of the underlying methodology.
+- Calculation of hourly lighting, plug loads, hot water (mostly), cooking load profiles.
+
+## Still todo
+
+- Heating/cooling, work in progress still.
+- Handle auxiliary loads for gas/solar water heating.
+- Electric hot water solar diverter
+- Pool pumps
+- Get higher precision reference data from NatHERS team, more test cases.
+- Some of the wrapper calculations used by the official ratings, carbon costs, etc.
+- Tidier package layout 
+
+## Getting started
+
+We're using poetry, see pyproject.toml for dependencies (mostly vanialla python + pandas + numpy)
+
+The test cases are a useful way to see how to talk to the package. 

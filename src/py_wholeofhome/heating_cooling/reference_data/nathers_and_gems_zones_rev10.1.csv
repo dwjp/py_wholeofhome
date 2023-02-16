@@ -1,0 +1,70 @@
+NatHERS Climate Zone,Location name,NCC Climate Zone,NatHERS thermal simulation Cooling Set Point (oC),WoH Cooling Set Point (oC),Applicable GEMS ZERL Zone,Evaporative cooler preliminary assessment of suitability
+1,Darwin Airport,1,26.5,25,Hot/humid,High cooling - NOT suitable for evaporative
+2,Port Hedland Airport,1,27,25,Hot/humid,High cooling - NOT suitable for evaporative
+3,Longreach Aero,3,27,25,Hot/humid,High cooling - MARGINAL
+4,Carnarvon Airport,3,26,25,Hot/humid,High cooling - NOT suitable for evaporative
+5,Townsville Aero,1,26.5,25,Hot/humid,High cooling - NOT suitable for evaporative
+6,Alice Springs,3,26.5,25,Mixed,High cooling - suitable for evaporative
+7,Rockhampton Aero,2,26,25,Hot/humid,High cooling - NOT suitable for evaporative
+8,Moree MO,4,26,25,Mixed,High cooling - suitable for evaporative
+9,Amberley Aero,2,26,25,Mixed,High cooling - NOT suitable for evaporative
+10,Brisbane AMO,2,25.5,25,Hot/humid,High cooling - NOT suitable for evaporative
+11,Coffs Harbour MO,2,25,24,Mixed,Moderate cooling - NOT suitable for evaporative
+12,Geraldton Airport,5,25,24,Mixed,High cooling - MARGINAL
+13,Perth Airport,5,25,24,Mixed,Moderate cooling - suitable for evaporative
+14,Armidale,7,24,23,Cold,LOW COOLING
+15,Williamtown AMO,5,25,24,Mixed,Moderate cooling - NOT suitable for evaporative
+16,Adelaide (Kent Town),5,25,24,Mixed,Moderate cooling - suitable for evaporative
+17,Sydney RO,5,25.5,24,Mixed,Moderate cooling - NOT suitable for evaporative
+18,Nowra RAN,6,24.5,24,Cold,Moderate cooling - MARGINAL
+19,Charleville AMO,3,27,25,Mixed,High cooling - suitable for evaporative
+20,Wagga AMO,4,25,24,Cold,Moderate cooling - suitable for evaporative
+21,Melbourne RO,6,24,23,Cold,Moderate cooling - suitable for evaporative
+22,East Sale AMO,6,23,23,Cold,Moderate cooling - MARGINAL
+23,Launceston (Ti Tree Bend),7,22.5,23,Cold,LOW COOLING
+24,Canberra Airport,7,24,23,Cold,Moderate cooling - suitable for evaporative
+25,Cabramurra,8,23,23,Cold,LOW COOLING
+26,Hobart RO,7,23,23,Cold,LOW COOLING
+27,Mildura AMO,4,25,24,Mixed,Moderate cooling - suitable for evaporative
+28,Richmond,6,24.5,24,Mixed,Moderate cooling - MARGINAL
+29,Weipa Aero,1,26,25,Hot/humid,High cooling - NOT suitable for evaporative
+30,Wyndham PO,1,27.5,25,Hot/humid,High cooling - NOT suitable for evaporative
+31,Willis Island,1,26.5,25,Hot/humid,High cooling - NOT suitable for evaporative
+32,Cairns AMO,1,26.5,25,Hot/humid,High cooling - NOT suitable for evaporative
+33,Broome Airport,1,27,25,Hot/humid,High cooling - NOT suitable for evaporative
+34,Learmouth Airport,1,26.5,25,Hot/humid,High cooling - MARGINAL
+35,Mackay MO,2,26,25,Hot/humid,High cooling - NOT suitable for evaporative
+36,Gladstone Radar,2,26,25,Hot/humid,High cooling - NOT suitable for evaporative
+37,Halls Creek Airport,3,27,25,Hot/humid,High cooling - MARGINAL
+38,Tennant Creek,3,27,25,Hot/humid,High cooling - MARGINAL
+39,Mount Isa AMO,3,27,25,Hot/humid,High cooling - MARGINAL
+40,Newman,3,28,25,Hot/humid,High cooling - suitable for evaporative
+41,Giles MO,4,27.5,25,Mixed,High cooling - suitable for evaporative
+42,Meekatharra Airport,4,28,25,Mixed,High cooling - suitable for evaporative
+43,Oodnadatta Airport,4,27,25,Mixed,High cooling - suitable for evaporative
+44,Kalgoorlie,4,26,25,Mixed,High cooling - suitable for evaporative
+45,Woomera Aerodrome,4,26,25,Mixed,High cooling - suitable for evaporative
+46,Cobar AMO,4,26.5,25,Mixed,High cooling - suitable for evaporative
+47,Bickley,4,24.5,24,Cold,Moderate cooling - suitable for evaporative
+48,Dubbo Airport,4,25,24,Cold,Moderate cooling - suitable for evaporative
+49,Katanning,4,24.5,24,Cold,Moderate cooling - suitable for evaporative
+50,Oakey Aero,5,25,24,Mixed,Moderate cooling - MARGINAL
+51,Forrest AMO,5,25.5,24,Mixed,Moderate cooling - suitable for evaporative
+52,Swanbourne,5,25,24,Mixed,Moderate cooling - MARGINAL
+53,Ceduna,5,24.5,24,Mixed,Moderate cooling - suitable for evaporative
+54,Mandurah,5,25,24,Mixed,Moderate cooling - MARGINAL
+55,Esperance,5,24,23,Cold,Moderate cooling - suitable for evaporative
+56,Mascot AMO,5,24.5,24,Mixed,Moderate cooling - NOT suitable for evaporative
+57,Manjimup,6,23.5,23,Cold,Moderate cooling - suitable for evaporative
+58,Albany Airport,6,23.5,23,Cold,LOW COOLING
+59,Mount Lofty,6,23,23,Cold,LOW COOLING
+60,Tullamarine,6,24,23,Cold,Moderate cooling - suitable for evaporative
+61,Mount Gambier AMO,6,23.5,23,Cold,Moderate cooling - suitable for evaporative
+62,Moorabbin Airport,6,24,23,Cold,Moderate cooling - suitable for evaporative
+63,Warrnambool,6,23,23,Cold,LOW COOLING
+64,Cape Otway,6,23,23,Cold,LOW COOLING
+65,Orange AP,7,23,23,Cold,LOW COOLING
+66,Ballarat Aerodrome,7,23.5,23,Cold,Moderate cooling - suitable for evaporative
+67,Low Head,7,23,23,Cold,LOW COOLING
+68,Launceston AP,7,23.5,23,Cold,LOW COOLING
+69,Thredbo Valley,8,22.5,23,Cold,LOW COOLING

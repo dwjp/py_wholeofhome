@@ -1,1 +1,0 @@
-from .utilities import calculate_occupants

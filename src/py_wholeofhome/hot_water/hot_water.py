@@ -4,9 +4,12 @@ import pandas as pd
 import math
 from enum import Enum
 from typing import Optional
+from calendar import monthrange
+from pathlib import Path
 
-from utilities import calculate_occupants
+from ..utilities import calculate_occupants
 
+here = Path(__file__).parent
 
 class HotWaterType(Enum):
     SOLID_FUEL = 0
@@ -118,10 +121,10 @@ def calculate_annual_purchased_energy(annual_demand: float, hw_type_code: str) -
 
     :param annual_demand:
     :param hw_type_code:
-    :return:
+    :return: Purchased energy in MJ/yr
     """
 
-    coefficient_data = pd.read_csv("hot_water/reference_data/hw_annual_energy_by_climate_zone_rev10.1.csv", index_col="System ID")
+    coefficient_data = pd.read_csv(here / "reference_data/hw_annual_energy_by_climate_zone_rev10.1.csv", index_col="System ID")
 
     # Try to look up coefficients. Could fail because it's not listed (invalid code?), or because a handful of entries
     # don't have coefficients (just have string for 'a', 'b', 'c', 'd' instead so cast to float will fail).
@@ -151,7 +154,7 @@ def get_climate_zone(postcode: str, hw_type: HotWaterType) -> int:
         raise ValueError("Invalid postcode")
 
     if hw_type == HotWaterType.HEAT_PUMP:
-        data = pd.read_csv('hot_water/reference_data/hw_heat_pump_climate_zones_rev10.1.csv')
+        data = pd.read_csv(here / 'reference_data/hw_heat_pump_climate_zones_rev10.1.csv')
         result = data[(data['from_postcode'] <= postcode) & (data['to_postcode'] >= postcode)]
         assert (len(result) == 1)
         zone = result['zone'].values[0]
@@ -159,7 +162,7 @@ def get_climate_zone(postcode: str, hw_type: HotWaterType) -> int:
         zone = int(zone.replace("HP", "").replace("-AU", ""))
 
     else:
-        data = pd.read_csv('hot_water/reference_data/hw_climate_zones_rev10.1.csv')
+        data = pd.read_csv(here / 'reference_data/hw_climate_zones_rev10.1.csv')
         result = data[(data['from_postcode'] <= postcode) & (data['to_postcode'] >= postcode)]
         assert (len(result) == 1)
         zone = int(result['zone'].values[0])
@@ -176,7 +179,7 @@ def calculate_monthly_share(hw_type_code: str, annual_demand: float) -> [float]:
     :return: Array with monthly share of HW demand with length of 12.
     """
 
-    coefficient_data = pd.read_csv("hot_water/reference_data/hw_monthly_share_rev10.1.csv",
+    coefficient_data = pd.read_csv(here / "reference_data/hw_monthly_share_rev10.1.csv",
                                    index_col="System ID")
 
     # Just grab type and climate zone, e.g. "SHP-4" for "SHP-4-30"
@@ -194,13 +197,15 @@ def calculate_monthly_share(hw_type_code: str, annual_demand: float) -> [float]:
         a, b, c, d = float(row['a-month']), float(row['b-month']), float(row['c-month']), float(row['d-month'])
         monthly_shares.append((a * (annual_demand ** 3)) + (b * (annual_demand ** 2)) + (c * annual_demand) + d)
 
-    # Shares should add up to be close to 1
-    assert math.isclose(sum(monthly_shares), 1.0, abs_tol=0.001)
+    # Shares should add up to be close to 1 (within 0.5%, given limited precision in reference data tables)
+    # Except for solar thermal gas, where there are separate shares for electricity/gas contribution
+    if hw_type_code_prefix[0:3] not in ['STX', 'STG']:
+        assert math.isclose(sum(monthly_shares), 1.0, abs_tol=0.005)
 
     return monthly_shares
 
 
-def calculate_hourly_performance_by_coefficients(hw_type: HotWaterType, annual_demand: float):
+def calculate_hourly_performance_by_coefficients(hw_type: HotWaterType, annual_demand: float) -> npt.NDArray[float]:
     """
     For hot water heaters where energy demand isn't directly coupled to usage, apply a set of four
     three order polynomials to represent share of energy usage throughout the day.
@@ -215,7 +220,7 @@ def calculate_hourly_performance_by_coefficients(hw_type: HotWaterType, annual_d
         a, b, c, d = row['ax'], row['bx'], row['cx'], row['dx']
         return a, b, c, d
 
-    hourly_coefficients = pd.read_csv("hot_water/reference_data/hw_hourly_coefficients_rev10.1.csv",
+    hourly_coefficients = pd.read_csv(here / "reference_data/hw_hourly_coefficients_rev10.1.csv",
                                       index_col="System ID")
 
     # Get abbreviations used to describe HW type in data table
@@ -265,14 +270,14 @@ def calculate_hourly_performance_by_coefficients(hw_type: HotWaterType, annual_d
 
     # Should add up to 1...
     # FIXME: Seem to need a bit of wiggle room due to lack of precision in table? Get original spreadsheet instead
-    assert math.isclose(sum(hourly_share), 1.0, abs_tol=0.003)
+    assert math.isclose(sum(hourly_share), 1.0, abs_tol=0.005)
 
-    return hourly_share
+    return np.array(hourly_share)
 
 
 def calculate_hourly_share(hw_type: HotWaterType,
                            annual_demand: float,
-                           energisation_schedule :Optional[EnergisationSchedule]=None) -> [float]:
+                           energisation_schedule :Optional[EnergisationSchedule]=None) -> npt.NDArray[float]:
     """
     Calculate what fraction of purchased energy is consumed by hour, over 24 hours.
 
@@ -283,7 +288,7 @@ def calculate_hourly_share(hw_type: HotWaterType,
     """
 
     # N.B. 'Nominal hour number' starts at 1 rather than 0
-    hourly_share_data = pd.read_csv("hot_water/reference_data/hw_hourly_profiles_rev10.1.csv",
+    hourly_share_data = pd.read_csv(here / "reference_data/hw_hourly_profiles_rev10.1.csv",
                                     index_col="Nominal hour number")
 
     # Check energisation setting is valid for given hw type
@@ -360,11 +365,21 @@ def calculate_hourly_energy_demand(dwelling_area: float,
 
     monthly_share = calculate_monthly_share(hw_type_code, annual_demand)
 
-    print(monthly_share)
-
     hourly_share = calculate_hourly_share(hw_type, annual_demand,
                                           energisation_schedule=EnergisationSchedule.CONTINUOUS)
 
-    print(hourly_share)
+    hourly_purchased_energy = np.array([])
 
-    return annual_purchased_energy
+    for month_index in range(12):
+        _, month_length = monthrange(2022, month_index + 1)
+
+        month_purchased_energy = monthly_share[month_index] * annual_purchased_energy
+        day_purchased_energy = month_purchased_energy / month_length
+
+        hourly_purchased_energy_for_month = np.tile(hourly_share * day_purchased_energy, month_length)
+        hourly_purchased_energy = np.concatenate((hourly_purchased_energy, hourly_purchased_energy_for_month))
+
+    # Allow 0.5% tolerance... data table precision is imperfect.
+    assert math.isclose(sum(hourly_purchased_energy), annual_purchased_energy, rel_tol=0.005)
+
+    return hourly_purchased_energy
