@@ -351,7 +351,8 @@ def calculate_hourly_energy_demand(dwelling_area: float,
                                    postcode: str,
                                    hw_type: HotWaterType,
                                    stc_count: Optional[int] = None,
-                                   gas_star_rating: Optional[float] = None,) -> npt.NDArray[float]:
+                                   gas_star_rating: Optional[float] = None,
+                                   energisation_schedule: Optional[EnergisationSchedule] = EnergisationSchedule.CONTINUOUS) -> npt.NDArray[float]:
 
     occupants = calculate_occupants(dwelling_area)
 
@@ -366,7 +367,7 @@ def calculate_hourly_energy_demand(dwelling_area: float,
     monthly_share = calculate_monthly_share(hw_type_code, annual_demand)
 
     hourly_share = calculate_hourly_share(hw_type, annual_demand,
-                                          energisation_schedule=EnergisationSchedule.CONTINUOUS)
+                                          energisation_schedule=energisation_schedule)
 
     hourly_purchased_energy = np.array([])
 
