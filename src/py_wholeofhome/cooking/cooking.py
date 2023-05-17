@@ -4,7 +4,7 @@ import math
 from enum import Enum
 from pathlib import Path
 
-from ..utilities import get_hourly_shares
+from ..utilities import get_hourly_shares, calculate_occupants
 
 
 here = Path(__file__).parent
@@ -28,6 +28,7 @@ def calculate_cooktop_annual_load(occupants: float, cooktop_type: CooktopType) -
     :param cooktop_type: Cooktop type
     :return: Plug load in MJ/yr
     """
+
 
     coefficients = pd.read_csv(here / "reference_data/cooking_coefficients_rev10.1.csv", index_col="variable")
 
@@ -68,8 +69,9 @@ def calculate_oven_annual_load(occupants: float, oven_type: OvenType) -> float:
     return c + (occupants * f)
 
 
-def calculate_hourly_energy_demand(occupants: float, cooktop_type: CooktopType, oven_type: OvenType) -> ([float], [float]):
+def calculate_hourly_energy_demand(dwelling_area: float, cooktop_type: CooktopType, oven_type: OvenType) -> ([float], [float]):
 
+    occupants = calculate_occupants(dwelling_area)
     annual_cooktop_load = calculate_cooktop_annual_load(occupants, cooktop_type)
     annual_oven_load = calculate_oven_annual_load(occupants, oven_type)
     hourly_shares = get_hourly_shares(here / 'reference_data/cooking_hourly_share_rev10.1.csv')
