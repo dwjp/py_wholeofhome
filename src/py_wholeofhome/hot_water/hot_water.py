@@ -3,7 +3,7 @@ import numpy.typing as npt
 import pandas as pd
 import math
 from enum import Enum
-from typing import Optional
+from typing import Optional, Tuple, Union
 from calendar import monthrange
 from pathlib import Path
 
@@ -23,7 +23,9 @@ class HotWaterType(Enum):
     HEAT_PUMP = 8
     # Auxiliary electrical load for GAS_INSTANTANEOUS... treat as independent HW unit for sake of analysis here,
     # but not intended for use outside this module.
-    _GAS_INSTANTANEOUS_AUXILLARY = 9
+    _GAS_INSTANTANEOUS_AUXILIARY = 9
+    # Likewise for gas boosted solar
+    _SOLAR_GAS_AUXILIARY = 10
 
 
 class EnergisationSchedule(Enum):
@@ -228,7 +230,7 @@ def calculate_hourly_performance_by_coefficients(hw_type: HotWaterType, annual_d
         row_code = 'ESS'
     elif hw_type == HotWaterType.GAS_STORAGE:
         row_code = 'GST'
-    elif hw_type == HotWaterType._GAS_INSTANTANEOUS_AUXILLARY:
+    elif hw_type == HotWaterType._GAS_INSTANTANEOUS_AUXILIARY:
         row_code = 'GIN'
     elif hw_type == HotWaterType.HEAT_PUMP:
         row_code = 'SHP'
@@ -282,8 +284,8 @@ def calculate_hourly_share(hw_type: HotWaterType,
     Calculate what fraction of purchased energy is consumed by hour, over 24 hours.
 
     :param hw_type: Hot water type
-    :param annual_demand: Annual hw demand
-    :param energisation_schedule: Whether HW is continiously powered, or on schedule (not relevant for some HW types)
+    :param annual_demand: Annual hw demand. Not needed for all HW types.
+    :param energisation_schedule: Whether HW is continuously powered, or on schedule (not relevant for some HW types)
     :return: Hourly share of purchased energy (24 points, summing to 1.00)
     """
 
@@ -320,39 +322,58 @@ def calculate_hourly_share(hw_type: HotWaterType,
     elif hw_type == HotWaterType.HEAT_PUMP:
         # Leave energisation_schedule as is... default to always on, but can run scheduled as well.
         pass
+    elif hw_type == HotWaterType._SOLAR_GAS_AUXILIARY:
+        # Doesn't matter for aux load, ignore
+        pass
     else:
         raise NotImplementedError
 
-    # Get hourly shares, based on fixed energisation schedule where relevant, coupled directly to HW demand, or based
-    # on more complex empirical model for storage systems.
-    if energisation_schedule == EnergisationSchedule.DAYTIME:
-        hourly_share = hourly_share_data['Daytime energisation by hour (share)'].values
-    elif energisation_schedule == EnergisationSchedule.OVERNIGHT:
-        hourly_share = hourly_share_data['Overnight energisation by hour (share)'].values
-    elif energisation_schedule == EnergisationSchedule.CONTINUOUS:
-        if hw_type in [HotWaterType.SOLID_FUEL, HotWaterType.ELECTRIC_INSTANTANEOUS, HotWaterType.GAS_INSTANTANEOUS,
-                       HotWaterType.SOLAR_GAS, HotWaterType.SOLAR_ELECTRIC]:
-            hourly_share = hourly_share_data['Time of Hot Water use by hour (share)'].values
-        elif hw_type in [HotWaterType.ELECTRIC_STORAGE_SMALL,
-                         HotWaterType.GAS_STORAGE,
-                         HotWaterType.HEAT_PUMP,
-                         HotWaterType._GAS_INSTANTANEOUS_AUXILLARY]:
-            # Hourly share depends on more complex model, not just driven by hot water demand or fixed schedule.
-            hourly_share = calculate_hourly_performance_by_coefficients(hw_type, annual_demand)
+    if hw_type == HotWaterType._SOLAR_GAS_AUXILIARY:
+        # Special case for gas boosted solar auxiliary load, we're not looking at gas demand, just electricity for pump
+        # and a little bit of idle load.
+        hourly_share = hourly_share_data['Share auxiliary electricity energy for solar thermal gas systems'].values
+    else:
+        # Get hourly shares, based on fixed energisation schedule where relevant, coupled directly to HW demand, or based
+        # on more complex empirical model for storage systems.
+        if energisation_schedule == EnergisationSchedule.DAYTIME:
+            hourly_share = hourly_share_data['Daytime energisation by hour (share)'].values
+        elif energisation_schedule == EnergisationSchedule.OVERNIGHT:
+            hourly_share = hourly_share_data['Overnight energisation by hour (share)'].values
+        elif energisation_schedule == EnergisationSchedule.CONTINUOUS:
+            if hw_type in [HotWaterType.SOLID_FUEL, HotWaterType.ELECTRIC_INSTANTANEOUS, HotWaterType.GAS_INSTANTANEOUS,
+                           HotWaterType.SOLAR_GAS, HotWaterType.SOLAR_ELECTRIC]:
+                hourly_share = hourly_share_data['Time of Hot Water use by hour (share)'].values
+            elif hw_type in [HotWaterType.ELECTRIC_STORAGE_SMALL,
+                             HotWaterType.GAS_STORAGE,
+                             HotWaterType.HEAT_PUMP,
+                             HotWaterType._GAS_INSTANTANEOUS_AUXILIARY]:
+                # Hourly share depends on more complex model, not just driven by hot water demand or fixed schedule.
+                hourly_share = calculate_hourly_performance_by_coefficients(hw_type, annual_demand)
+            else:
+                raise NotImplementedError
         else:
             raise NotImplementedError
-    else:
-        raise NotImplementedError
 
     return hourly_share
-
 
 def calculate_hourly_energy_demand(dwelling_area: float,
                                    postcode: str,
                                    hw_type: HotWaterType,
                                    stc_count: Optional[int] = None,
                                    gas_star_rating: Optional[float] = None,
-                                   energisation_schedule: Optional[EnergisationSchedule] = EnergisationSchedule.CONTINUOUS) -> npt.NDArray[float]:
+                                   energisation_schedule: Optional[EnergisationSchedule] = EnergisationSchedule.CONTINUOUS,
+                                   include_aux_electric_load=False) -> Union[npt.NDArray[float],  Tuple[npt.NDArray[float], npt.NDArray[float]]]:
+    """
+
+    :param dwelling_area:
+    :param postcode:
+    :param hw_type:
+    :param stc_count:
+    :param gas_star_rating:
+    :param energisation_schedule:
+    :param include_aux_electric_load: Whether to return
+    :return:
+    """
 
     occupants = calculate_occupants(dwelling_area)
 
@@ -371,6 +392,11 @@ def calculate_hourly_energy_demand(dwelling_area: float,
 
     hourly_purchased_energy = np.array([])
 
+    if hw_type == HotWaterType.SOLAR_GAS:
+        aux_monthly_share = calculate_monthly_share(f"STX-{climate_zone}", annual_demand)
+        aux_hourly_share = calculate_hourly_share(HotWaterType._SOLAR_GAS_AUXILIARY, 0)
+        aux_hourly_purchased_energy = np.array([])
+
     for month_index in range(12):
         _, month_length = monthrange(2022, month_index + 1)
 
@@ -380,12 +406,21 @@ def calculate_hourly_energy_demand(dwelling_area: float,
         hourly_purchased_energy_for_month = np.tile(hourly_share * day_purchased_energy, month_length)
         hourly_purchased_energy = np.concatenate((hourly_purchased_energy, hourly_purchased_energy_for_month))
 
+        if hw_type == HotWaterType.SOLAR_GAS:
+            aux_month_purchased_energy = aux_monthly_share[month_index] * annual_purchased_energy
+            aux_day_purchased_energy = aux_month_purchased_energy / month_length
+
+            aux_hourly_purchased_energy_for_month = np.tile(aux_hourly_share * aux_day_purchased_energy, month_length)
+            aux_hourly_purchased_energy = np.concatenate((aux_hourly_purchased_energy, aux_hourly_purchased_energy_for_month))
+
     if hw_type == HotWaterType.SOLAR_GAS:
-        # FIXME: Allow 7% tolerance for now to account for fact we haevn't implemented the electricity contribution for
-        # solar gas yet.
-        assert math.isclose(sum(hourly_purchased_energy), annual_purchased_energy, rel_tol=0.07)
+        # Have to check sum of gas and electricity demand matches annual total, not just gas.
+        assert math.isclose(sum(hourly_purchased_energy) + sum(aux_hourly_purchased_energy), annual_purchased_energy, rel_tol=0.005)
     else:
         # Allow 0.5% tolerance... data table precision is imperfect.
         assert math.isclose(sum(hourly_purchased_energy), annual_purchased_energy, rel_tol=0.005)
 
-    return hourly_purchased_energy
+    if include_aux_electric_load:
+        return hourly_purchased_energy, aux_hourly_purchased_energy
+    else:
+        return hourly_purchased_energy

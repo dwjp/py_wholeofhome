@@ -46,10 +46,17 @@ class HotWaterTests(unittest.TestCase):
         purchased = calculate_annual_purchased_energy(annual_demand, type_str)
         self.assertAlmostEqual(purchased, 2989.25, delta=1)  # Some wobble here again due to data tables
 
-        # FIXME: This bit will fail until we implement electricity use share (STX code)
-        # hourly = calculate_hourly_energy_demand(dwelling_area, postcode, hw_type, stc_count=stc_count)
-        # self.assertAlmostEqual(sum(hourly), 2728.03, delta=1)
-        # self.assertEqual(len(hourly), 8760)
+        hourly, hourly_aux = calculate_hourly_energy_demand(dwelling_area,
+                                                            postcode,
+                                                            hw_type,
+                                                            stc_count=stc_count,
+                                                            include_aux_electric_load=True)
+
+        # Allow slight error original annual demand given data table lack of precision, <0.5%
+        # Sum of gas and electricity demand should match annual total.
+        self.assertAlmostEqual(sum(hourly) + sum(hourly_aux), 2989.25, delta=10)
+        self.assertEqual(len(hourly), 8760)
+        self.assertEqual(len(hourly_aux), 8760)
 
     def test_example_3(self):
         # From worked example 3, same as example 1 but gas instant.
@@ -91,7 +98,8 @@ class HotWaterTests(unittest.TestCase):
         self.assertEqual(len(hourly), 8760)
 
     def test_example_heat_pump(self):
-        # From worked example 4, same as example 1 but small electric storage
+        # No example in methods paper, but base on example 4. Note that annual demand about 1/3 of a
+        # resistive hot water heater as expected.
 
         dwelling_area = 200
         occupants = 3.55
@@ -99,11 +107,12 @@ class HotWaterTests(unittest.TestCase):
         postcode = "2000"
         hw_type = HotWaterType.HEAT_PUMP
         annual_demand = 9.1782  # From example 1
+        stc_count = 30
 
-        # type_str = get_hot_water_type_code(hw_type, climate_zone)
-        # purchased = calculate_annual_purchased_energy(annual_demand, type_str)
-        # self.assertAlmostEqual(purchased, 11048.91, delta=3)  # Some wobble here again due to data tables
+        type_str = get_hot_water_type_code(hw_type, climate_zone, stc_count=stc_count)
+        purchased = calculate_annual_purchased_energy(annual_demand, type_str)
+        self.assertAlmostEqual(purchased, 3317, delta=5)  # Some wobble here again due to data tables
 
-        hourly = calculate_hourly_energy_demand(dwelling_area, postcode, hw_type, stc_count=30)
-        self.assertAlmostEqual(sum(hourly), 11048.91, delta=50)  # More wobbble...
+        hourly = calculate_hourly_energy_demand(dwelling_area, postcode, hw_type, stc_count=stc_count)
+        self.assertAlmostEqual(sum(hourly), 3317, delta=5)  # More wobbble...
         self.assertEqual(len(hourly), 8760)
