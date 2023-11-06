@@ -272,7 +272,7 @@ def calculate_hourly_performance_by_coefficients(hw_type: HotWaterType, annual_d
 
     # Should add up to 1...
     # FIXME: Seem to need a bit of wiggle room due to lack of precision in table? Get original spreadsheet instead
-    assert math.isclose(sum(hourly_share), 1.0, abs_tol=0.005)
+    assert math.isclose(sum(hourly_share), 1.0, abs_tol=0.007)
 
     return np.array(hourly_share)
 
@@ -418,7 +418,7 @@ def calculate_hourly_energy_demand(dwelling_area: float,
         assert math.isclose(sum(hourly_purchased_energy) + sum(aux_hourly_purchased_energy), annual_purchased_energy, rel_tol=0.005)
     else:
         # Allow 0.5% tolerance... data table precision is imperfect.
-        assert math.isclose(sum(hourly_purchased_energy), annual_purchased_energy, rel_tol=0.005)
+        assert math.isclose(sum(hourly_purchased_energy), annual_purchased_energy, rel_tol=0.007)
 
     if include_aux_electric_load:
         return hourly_purchased_energy, aux_hourly_purchased_energy

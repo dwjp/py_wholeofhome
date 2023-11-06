@@ -116,3 +116,13 @@ class HotWaterTests(unittest.TestCase):
         hourly = calculate_hourly_energy_demand(dwelling_area, postcode, hw_type, stc_count=stc_count)
         self.assertAlmostEqual(sum(hourly), 3317, delta=5)  # More wobbble...
         self.assertEqual(len(hourly), 8760)
+
+    def test_gas_storage(self):
+        dwelling_area = 500
+        climate_zone = 4
+        postcode = "3000"
+        gas_star_rating = 4
+        hw_type = HotWaterType.GAS_STORAGE
+
+        hourly = calculate_hourly_energy_demand(dwelling_area, postcode, hw_type, gas_star_rating=gas_star_rating)
+        self.assertAlmostEqual(sum(hourly), 23438, delta=5)  # More wobbble...
