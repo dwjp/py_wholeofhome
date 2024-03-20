@@ -8,7 +8,7 @@ packages = [{include = "py_wholeofhome", from = "src"}]
 
 [tool.poetry.dependencies]
 python = "^3.8"
-pandas = "^1.1.4"
+pandas = "^1.1.5"
 
 
 [build-system]
