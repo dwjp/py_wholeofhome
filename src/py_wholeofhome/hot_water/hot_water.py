@@ -125,6 +125,9 @@ def calculate_annual_purchased_energy(annual_demand: float, hw_type_code: str) -
     :param hw_type_code:
     :return: Purchased energy in MJ/yr
     """
+    # TODO - can we add coefficients for SHP-1-30 and SHP-2-30?
+    # TODO - change the method to assume a fall back value?
+    # TODO - Write tests that cover these postcodes: "4810", "4870", "4170", "4740", "4730", "4825", "4350" for hot water heat pump
 
     coefficient_data = pd.read_csv(here / "reference_data/hw_annual_energy_by_climate_zone_rev10.1.csv", index_col="System ID")
 
