@@ -117,6 +117,36 @@ class HotWaterTests(unittest.TestCase):
         self.assertAlmostEqual(sum(hourly), 3317, delta=5)  # More wobbble...
         self.assertEqual(len(hourly), 8760)
 
+    def test_example_heat_pump_cairns_mtisa(self):
+        # test case to test the outcome when using a fallback value for the hw-type-code SHP-1-30 and SHP-2-30
+
+        dwelling_area = 200
+        occupants = 3.55
+        climate_zone = 1
+        postcode = "4870"
+        hw_type = HotWaterType.HEAT_PUMP
+        annual_demand = 9.1782  # From example 1
+        stc_count = 30
+
+        type_str = get_hot_water_type_code(hw_type, climate_zone, stc_count=stc_count)
+        purchased = calculate_annual_purchased_energy(annual_demand, type_str)
+        self.assertAlmostEqual(purchased, 2500, delta=5)  # Some wobble here again due to data tables
+
+        hourly = calculate_hourly_energy_demand(dwelling_area, postcode, hw_type, stc_count=stc_count)
+        self.assertAlmostEqual(sum(hourly), 2150, delta=5)  # More wobbble...
+        self.assertEqual(len(hourly), 8760)
+
+        climate_zone = 3
+        postcode = "4825"
+
+        type_str = get_hot_water_type_code(hw_type, climate_zone, stc_count=stc_count)
+        purchased = calculate_annual_purchased_energy(annual_demand, type_str)
+        self.assertAlmostEqual(purchased, 3312, delta=5)  # Some wobble here again due to data tables
+
+        hourly = calculate_hourly_energy_demand(dwelling_area, postcode, hw_type, stc_count=stc_count)
+        self.assertAlmostEqual(sum(hourly), 2414, delta=5)  # More wobbble...
+        self.assertEqual(len(hourly), 8760)
+
     def test_gas_storage(self):
 
         # Typical home
