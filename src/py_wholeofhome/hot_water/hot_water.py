@@ -1,3 +1,5 @@
+import logging
+
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
@@ -128,13 +130,26 @@ def calculate_annual_purchased_energy(annual_demand: float, hw_type_code: str) -
 
     coefficient_data = pd.read_csv(here / "reference_data/hw_annual_energy_by_climate_zone_rev10.1.csv", index_col="System ID")
 
-    # Try to look up coefficients. Could fail because it's not listed (invalid code?), or because a handful of entries
-    # don't have coefficients (just have string for 'a', 'b', 'c', 'd' instead so cast to float will fail).
+    # get relevant data for to match the hw_type_code
+    hw_type, climate_zone, stc_count = hw_type_code.split('-')
+    relevant_data = coefficient_data.loc[coefficient_data.index.str.startswith(hw_type)]
+    relevant_data = relevant_data.loc[relevant_data["Climate"] == int(climate_zone)]
+    row = relevant_data.loc[relevant_data["STCs"] == int(stc_count)]
+
+    # Try to look up coefficients. Row may be empty due to no values in STCs column.
+    # It may also fail because a handful of entries don't have coefficients
+    # (just have string for 'a', 'b', 'c', 'd' instead so cast to float will fail).
     try:
-        row = coefficient_data.loc[hw_type_code]
+        if row.empty:
+            if hw_type_code in coefficient_data.index:
+                row = coefficient_data.loc[hw_type_code]
+            else:
+                # get closest STC code
+                closest_stc = int(min(list(relevant_data["STCs"]), key=lambda x:abs(x-int(stc_count))))
+                row = relevant_data.loc[relevant_data["STCs"] == closest_stc]
+                logging.info(f"No data available for {hw_type_code} - using code {hw_type}-{climate_zone}-{closest_stc} instead")
+
         a, b, c, d = float(row['a']), float(row['b']), float(row['c']), float(row['d'])
-    except KeyError:
-        raise RuntimeError(f"No data available for {hw_type_code}")
     except TypeError:
         raise RuntimeError(f"Missing coefficients for {hw_type_code}")
 
