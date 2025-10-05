@@ -1,15 +1,15 @@
 import logging
+import math
+from calendar import monthrange
+from enum import Enum
+from pathlib import Path
+from typing import Optional, Tuple, Union
 
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
-import math
-from enum import Enum
-from typing import Optional, Tuple, Union
-from calendar import monthrange
-from pathlib import Path
 
-from ..utilities import calculate_occupants
+from ..utilities import as_float, calculate_occupants
 
 here = Path(__file__).parent
 
@@ -149,7 +149,7 @@ def calculate_annual_purchased_energy(annual_demand: float, hw_type_code: str) -
                 row = relevant_data.loc[relevant_data["STCs"] == closest_stc]
                 logging.info(f"No data available for {hw_type_code} - using code {hw_type}-{climate_zone}-{closest_stc} instead")
 
-        a, b, c, d = float(row['a']), float(row['b']), float(row['c']), float(row['d'])
+        a, b, c, d = as_float(row['a']), as_float(row['b']), as_float(row['c']), as_float(row['d'])
     except TypeError:
         raise RuntimeError(f"Missing coefficients for {hw_type_code}")
 

@@ -1,8 +1,9 @@
 import math
+from calendar import monthrange
+
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
-from calendar import monthrange
 
 
 def calculate_occupants(dwelling_area: float) -> float:
@@ -51,5 +52,10 @@ def get_nathers_zone(postcode: int) -> int:
     return nathers_zone_data.loc[postcode]['Primary']
 
 
-
-
+def as_float(x):
+    """Convert a single-element Series to float, leave scalar untouched."""
+    if isinstance(x, pd.Series):
+        if len(x) != 1:
+            raise ValueError("Expected a Series with exactly one element")
+        return float(x.iloc[0])
+    return float(x)  # already a scalar
