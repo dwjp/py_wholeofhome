@@ -1,10 +1,18 @@
 """
 NatHERS Whole of Home energy costs and emissions factors (§3.11, Tables 86–89).
+Source: NatHERS Whole of Home Calculation Method v20250626.
 
 WARNING: Energy prices are from ~2022; emission factors from National Greenhouse
 Accounts 2019 (via NCC 2022 Whole of Home update). Use these values for NatHERS
 accredited pathway compliance only. For other purposes substitute current values
 from AEMO, state retailers, or DCCEEW.
+
+WARNING — EMISSIONS FACTORS ARE SEVERELY OUT OF DATE: The electricity grid has
+changed substantially since 2019 (significant renewable buildout in all states).
+The 2019 NGA factors will materially overstate emissions for coal-heavy grids
+(VIC, QLD) and may understate for transitioning grids. Do not use these values
+for emissions calculations, reporting, or investment decisions unless the NatHERS
+accredited pathway methodology specifically requires them.
 """
 from enum import Enum
 from typing import Union

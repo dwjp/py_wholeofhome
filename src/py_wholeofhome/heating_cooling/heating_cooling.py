@@ -1,3 +1,7 @@
+"""
+NatHERS Whole of Home heating and cooling energy demand (§3.4, Eq 14–24).
+Source: NatHERS Whole of Home Calculation Method v20250626.
+"""
 import logging
 import math
 from enum import Enum
